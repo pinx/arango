@@ -1,5 +1,7 @@
 defmodule Arango.Protocol do
 
+  alias Arango.Result
+
   @version 1
   @message_type_request 1
 
@@ -23,9 +25,9 @@ defmodule Arango.Protocol do
   def parse(data)
   def parse(""), do: {:ok, nil, ""}
   def parse(data) do
-    {message, 0} = VelocyPack.unpack(data)
+    {message, 0} = VelocyStream.unpack(data)
     with {:ok, header, tail} <- VelocyPack.decode(message),
-         {:ok, body, ""} = Velocypack.decode(tail) do
+         {:ok, body, ""} = VelocyPack.decode(tail) do
       {:ok, Result.from_response(header, body)}
     end
    end

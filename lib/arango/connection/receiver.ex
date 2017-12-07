@@ -4,6 +4,7 @@ defmodule Arango.Connection.Receiver do
   use GenServer
 
   alias Arango.Connection.Queue
+  alias Arango.Protocol
 
   ## GenServer state
 
@@ -48,7 +49,6 @@ defmodule Arango.Connection.Receiver do
   @doc false
   def handle_info({:tcp, socket, data}, %{socket: socket} = state) do
     :ok = :inet.setopts(socket, active: :once)
-    |> IO.inspect(label: "receiver handle info")
     state =
       state
       |> parse_data(data)

@@ -19,11 +19,12 @@ defmodule Arango.Socket do
     timeout = @default_timeout
 
     with {:ok, socket} <- :gen_tcp.connect(host, port, socket_opts),
-        :ok <- :gen_tcp.send(socket, "VST/1.0\r\n\r\n"),
-        :ok <- :gen_tcp.send(socket, auth),
-        :ok <- :gen_tcp.recv(socket, 0) do
-        #:ok <- :inet.setopts(socket, active: :once) do
-        {:ok, socket}
+         :ok <- :gen_tcp.send(socket, "VST/1.0\r\n\r\n"),
+         :ok <- :gen_tcp.send(socket, auth),
+         :ok <- :timer.sleep(100),
+         {:ok, _} <- :gen_tcp.recv(socket, 0),
+         :ok <- :inet.setopts(socket, active: :once) do
+         {:ok, socket}
     end
   end
 

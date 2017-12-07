@@ -24,7 +24,7 @@ defmodule Arango do
   def stop(conn, timeout \\ :infinity) do
     Arango.Connection.stop(conn, timeout)
   end
-  def command(conn, command, opts \\ []) do
+  def command(conn, %Arango.Command{} = command, opts \\ []) do
     Arango.Connection.command(conn, command, opts[:timeout] || @default_timeout)
   end
 end

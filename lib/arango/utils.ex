@@ -5,7 +5,7 @@ defmodule Arango.Utils do
 
   @arangodb_opts [:host, :port, :username, :password, :database]
   @arangodb_default_opts [
-    host: "localhost",
+    host: "http://localhost",
     port: 8529,
     username: "root",
     password: "arango"

@@ -66,7 +66,7 @@ defmodule Arango.Connection do
       {:ok, socket} ->
         state = %{state | socket: socket}
         {:ok, queue} = Queue.start_link()
-                              |> IO.inspect()
+
         case start_receiver_and_hand_socket(state.socket, queue) do
           {:ok, receiver} ->
             # If this is a reconnection attempt, log that we successfully
@@ -215,13 +215,14 @@ defmodule Arango.Connection do
   defp start_receiver_and_hand_socket(socket, queue) do
     {:ok, receiver} =
       Receiver.start_link(sender: self(), socket: socket, queue: queue)
-      |> IO.inspect()
+
     # We activate the socket after transferring control to the receiver
     # process, so that we don't get any :tcp_closed messages before
     # transferring control.
     with :ok <- :gen_tcp.controlling_process(socket, receiver),
-         :ok <- :inet.setopts(socket, active: :once),
-         do: {:ok, receiver}
+         :ok <- :inet.setopts(socket, active: :once) do
+      {:ok, receiver}
+    end
   end
 
   defp flush_messages_from_receiver(%{receiver: receiver} = state) do

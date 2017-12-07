@@ -25,12 +25,17 @@ defmodule ArangoTest do
 
   @tag :no_setup
   test "start_link/2: specifying a database" do
-    {:ok, c} = Arango.start_link(host: @host, port: @port, database: "test")
-    assert Arango.command(c, "FROM doc in documents RETURN doc") == {:ok, "OK"}
-#
-#    # Let's check we didn't write to the default database (which is 0).
-#    {:ok, c} = Redix.start_link(host: @host, port: @port)
-#    assert Redix.command(c, ~w(GET my_key)) == {:ok, nil}
+    {:ok, conn} = Arango.start_link(host: @host, port: @port, database: "test")
+    command = %Arango.Command{
+      database: "test",
+      method: :post,
+      path: "/_api/document/tests",
+      params: %{},
+      meta: %{},
+      body: %{},
+      opts: []
+    }
+    {:ok, %Arango.Result{} = result} = Arango.command(conn, command)
+    assert !is_nil(result.body)
   end
-
 end

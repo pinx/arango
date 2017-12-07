@@ -60,7 +60,7 @@ defmodule Arango.Connection.Queue do
 
   # Returns {timed_out_request?, client}.
   def handle_call(:dequeue, _from, state) do
-    {{:value, {:commands, request_id, _from} = client}, new_queue} =
+    {{:value, {:command, request_id, _from} = client}, new_queue} =
       :queue.out(state.clients_queue)
 
     {timed_out_request?, new_timed_out_requests} =
@@ -72,7 +72,7 @@ defmodule Arango.Connection.Queue do
 
   def handle_call(:disconnect_clients_and_stop, _from, state) do
     # First, we notify all the clients.
-    Enum.each(:queue.to_list(state.clients_queue), fn {:commands, request_id, from} ->
+    Enum.each(:queue.to_list(state.clients_queue), fn {:command, request_id, from} ->
       # We don't care about "popping" the element out of the MapSet (returning
       # the new set) because this process is going to die at the end of this
       # function anyways.
