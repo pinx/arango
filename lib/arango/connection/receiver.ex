@@ -3,7 +3,7 @@ defmodule Arango.Connection.Receiver do
 
   use GenServer
 
-  alias Arango.Connection.SharedState
+  alias Arango.Connection.Queue
 
   ## GenServer state
 
@@ -11,12 +11,12 @@ defmodule Arango.Connection.Receiver do
   # socket: The TCP socket, which should be passive when given to this process
   # continuation: The parsing continuation returned by Redix.Protocol
   # current_client: The client that we'll need to reply to once the current continuation is done
-  # shared_state: The shared state process
+  # queue: The shared state process
   defstruct sender: nil,
             socket: nil,
             continuation: nil,
             current_client: nil,
-            shared_state: nil
+            queue: nil
 
   ## Public API
 
@@ -72,7 +72,7 @@ defmodule Arango.Connection.Receiver do
 
   defp parse_data(%{continuation: nil} = state, data) do
     {timed_out_request?, {:command, request_id, from}} =
-      client = SharedState.dequeue(state.shared_state)
+      client = Queue.dequeue(state.queue)
 
     case Protocol.parse(data) do
       {:ok, result} ->

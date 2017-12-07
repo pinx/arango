@@ -8,14 +8,14 @@ defmodule Arango.Connection do
   alias Arango.Socket
   alias Arango.Utils
   alias Arango.Connection.Receiver
-  alias Arango.Connection.SharedState
+  alias Arango.Connection.Queue
 
   require Logger
 
   defstruct socket: nil,
             opts: nil,
             receiver: nil,
-            shared_state: nil,
+            queue: nil,
             backoff_current: nil
 
   @backoff_exponent 1.5
@@ -65,9 +65,9 @@ defmodule Arango.Connection do
     case Socket.connect(state.opts) do
       {:ok, socket} ->
         state = %{state | socket: socket}
-        {:ok, shared_state} = SharedState.start_link()
+        {:ok, queue} = Queue.start_link()
                               |> IO.inspect()
-        case start_receiver_and_hand_socket(state.socket, shared_state) do
+        case start_receiver_and_hand_socket(state.socket, queue) do
           {:ok, receiver} ->
             # If this is a reconnection attempt, log that we successfully
             # reconnected.
@@ -75,7 +75,7 @@ defmodule Arango.Connection do
               log(state, :reconnection, ["Reconnected to Arango (", Utils.format_host(state), ")"])
             end
 
-            {:ok, %{state | shared_state: shared_state, receiver: receiver}}
+            {:ok, %{state | queue: queue, receiver: receiver}}
 
           {:error, reason} ->
             log(state, :failed_connection, [
@@ -131,7 +131,7 @@ defmodule Arango.Connection do
   end
 
   def handle_call({:command, command, request_id}, from, %{socket: socket} = state) do
-    :ok = SharedState.enqueue(state.shared_state, {:command, request_id, from})
+    :ok = Queue.enqueue(state.queue, {:command, request_id, from})
 
     # todo - use message id for VelocyStream
     data = Protocol.pack(command)
@@ -145,19 +145,19 @@ defmodule Arango.Connection do
   end
 
   # If the socket is nil, it means we're disconnected. We don't want to
-  # communicate with the shared_state because it's not alive anymore.
+  # communicate with the queue because it's not alive anymore.
   def handle_call({operation, _request_id}, _from, %{socket: nil} = state)
       when operation in [:timed_out, :cancel_timed_out] do
     {:reply, :ok, state}
   end
 
   def handle_call({:timed_out, request_id}, _from, state) do
-    :ok = SharedState.add_timed_out_request(state.shared_state, request_id)
+    :ok = Queue.add_timed_out_request(state.queue, request_id)
     {:reply, :ok, state}
   end
 
   def handle_call({:cancel_timed_out, request_id}, _from, state) do
-    :ok = SharedState.cancel_timed_out_request(state.shared_state, request_id)
+    :ok = Queue.cancel_timed_out_request(state.queue, request_id)
     {:reply, :ok, state}
   end
 
@@ -183,10 +183,10 @@ defmodule Arango.Connection do
     {:disconnect, {:error, %ConnectionError{reason: reason}}, state}
   end
 
-  def terminate(reason, %{receiver: receiver, shared_state: shared_state} = _state) do
+  def terminate(reason, %{receiver: receiver, queue: queue} = _state) do
     if reason == :normal do
       :ok = GenServer.stop(receiver, :normal)
-      :ok = GenServer.stop(shared_state, :normal)
+      :ok = GenServer.stop(queue, :normal)
     end
   end
 
@@ -196,11 +196,11 @@ defmodule Arango.Connection do
     case Socket.connect(state.opts) do
       {:ok, socket} ->
         state = %{state | socket: socket}
-        {:ok, shared_state} = SharedState.start_link()
+        {:ok, queue} = Queue.start_link()
 
-        case start_receiver_and_hand_socket(state.socket, shared_state) do
+        case start_receiver_and_hand_socket(state.socket, queue) do
           {:ok, receiver} ->
-            state = %{state | shared_state: shared_state, receiver: receiver}
+            state = %{state | queue: queue, receiver: receiver}
             {:ok, state}
 
           {:error, reason} ->
@@ -212,9 +212,9 @@ defmodule Arango.Connection do
     end
   end
 
-  defp start_receiver_and_hand_socket(socket, shared_state) do
+  defp start_receiver_and_hand_socket(socket, queue) do
     {:ok, receiver} =
-      Receiver.start_link(sender: self(), socket: socket, shared_state: shared_state)
+      Receiver.start_link(sender: self(), socket: socket, queue: queue)
       |> IO.inspect()
     # We activate the socket after transferring control to the receiver
     # process, so that we don't get any :tcp_closed messages before

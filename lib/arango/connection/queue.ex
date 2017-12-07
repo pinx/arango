@@ -1,4 +1,4 @@
-defmodule Arango.Connection.SharedState do
+defmodule Arango.Connection.Queue do
   @moduledoc false
 
   use GenServer
